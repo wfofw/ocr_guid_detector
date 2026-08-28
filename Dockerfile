@@ -16,13 +16,12 @@ ENV PYTHONPATH=/app
 
 # Caching Python Dependencies
 COPY requirements.txt /app/
-RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir pytest
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Copy clean source code and tests
 COPY guid_detector/ /app/guid_detector/
-COPY tests/ /app/tests/
-COPY demo.py /app/
+COPY app.py /app/
 
-CMD ["pytest", "-v"]
+EXPOSE 5000
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "5000"]
