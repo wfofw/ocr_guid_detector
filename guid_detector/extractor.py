@@ -1,4 +1,5 @@
 import re
+import time
 from collections import Counter
 
 import pytesseract
@@ -12,76 +13,40 @@ from guid_detector.processing import (
 )
 
 
-def crop_message_id_column(img, margin_x=20, offset_top=5, offset_bottom=5):
-    """
-    Searches for the word "message_id" in the screenshot and cuts out the column below it..
-    Returning (crop_img, bbox), where bbox = (left, top, right, bottom).
-    """
-    # 1. OCR with coordinates
-    data = pytesseract.image_to_data(
-        img,
-        lang="eng",
-        config="--oem 3 --psm 6 -c user_defined_dpi=300",
-        output_type=pytesseract.Output.DICT,
-    )
+def find_guids_by_stripes(img: Image.Image):
+    start_time = time.time()
 
-    # 2. We are looking for a cell with the text message_id (case-insensitive)
-    target_idx = None
-    for i, txt in enumerate(data["text"]):
-        if txt and txt.strip().lower() == "message_id":
-            target_idx = i
-            break
-
-    if target_idx is None:
-        return None
-
-    x = data["left"][target_idx]
-    y = data["top"][target_idx]
-    w_box = data["width"][target_idx] + 35
-    h_box = data["height"][target_idx]
-
-    # 3. We construct the column boundaries along X
-    left = max(0, x - margin_x)
-    right = min(img.size[0], x + w_box + margin_x)
-
-    # In Y - from the bottom of the title to the bottom of the picture
-    top = min(img.size[1], y + h_box + offset_top)
-    bottom = img.size[1] - offset_bottom
-
-    crop_box = (left, top, right, bottom)
-    crop_img = img.crop(crop_box)
-
-    return crop_img
-
-
-def find_guids_by_stripes(img: Image.Image, crop: int = 0):
     W, H = img.size
     window_h = 100
     overlap = 50
     step = window_h - overlap
 
     # Modes for different situations
-    if crop:
-        # The message_id column has already been removed, but you can upscale it more aggressively.
-        scales = [8, 9, 10, 11]
-        psms = [3]
-        thresholds = [x for x in range(182, 198, 4)]
-    else:
-        # The overall screen is softer
-        scales = [4, 8, 12, 16]
-        psms = [3]
-        thresholds = [140, 180, 220] #180, 190, 200, 210
+    scales = [4, 8, 10]
+    psms = [3]
+    thresholds = [180, 190, 200, 210] #180, 190, 200, 210
+    inverts = [False]
 
-    inverts = [False, True]
+    num_stripes = 0
+    y_tmp = 0
+    while y_tmp < H:
+        num_stripes += 1
+        y_tmp += step
+
+    total_steps = num_stripes * len(scales) * len(thresholds) * len(inverts) * len(psms)
+    current_step = 0
 
     y = 0
     guids = set()
+
     while y < H:
         top = y
         bottom = min(H, y + window_h)
         stripe = img.crop((0, top, W, bottom))
+
         guid_counts = Counter()
         all_txt_found = []
+
         for scale in scales:
             for thr in thresholds:
                 for inv in inverts:
@@ -105,6 +70,26 @@ def find_guids_by_stripes(img: Image.Image, crop: int = 0):
 
                         all_txt_found.append(txt)
 
+                        current_step += 1
+                        
+                        # Calculating seconds and speed
+                        elapsed = time.time() - start_time
+                        speed = current_step / elapsed if elapsed > 0 else 0
+                        remaining_steps = total_steps - current_step
+                        eta = max(0.0, remaining_steps / speed) if speed > 0 else 0
+                        percent = min(100.0, round((current_step / total_steps) * 100, 1))
+
+                        # Sending an extended progress event
+                        yield {
+                            "type": "progress",
+                            "current": current_step,
+                            "total": total_steps,
+                            "percent": percent,
+                            "elapsed_seconds": round(elapsed, 0),
+                            "eta_seconds": round(eta, 0),
+                            "speed_steps_per_sec": round(speed, 2),
+                        }
+
         cand = build_one_guid_from_lines(all_txt_found)
         if cand:
             guid_counts[cand.lower()] += 4
@@ -124,4 +109,11 @@ def find_guids_by_stripes(img: Image.Image, crop: int = 0):
         min_total=1,
     )
 
-    return guids
+    total_time = round(time.time() - start_time, 2)
+
+    yield {
+        "type": "result",
+        "count": len(guids),
+        "guids": sorted(guids),
+        "total_time_seconds": total_time,
+    }
