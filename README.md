@@ -47,7 +47,7 @@ docker build -t guid_detector .
 docker run -d -p 5000:5000 --name cont_guid_detector guid_detector
 ```
 
-Swagger UI documentation will be instantly available at http://localhost:5000/docs
+Swagger UI documentation will be instantly available at [http://localhost:5000/docs](http://localhost:5000/docs).
 
 ## 🛠 API Usage & Quick Test
 
