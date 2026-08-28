@@ -11,14 +11,13 @@ It works with screenshots, photos (in the future with PDF, Word, etc.), recogniz
 
 ## 🌟 Highlights
 
-- Successful detection rate reaches 99.9%
-- Scalable for simultaneous processing of thousands of files
+- Designed for automated processing of large image collections
 - Advanced image preprocessing (slicing, scaling, thresholding, and color inversion)
 - FastAPI-backed REST API with streaming real-time status updates
 
 ## ℹ️ Overview
 
-To successfully recognize GUIDs, which can be located anywhere, in any font, and in any size.
+The goal is to reliably recognize GUIDs regardless of their position, font, or size.
 
 Tesseract-OCR was used as a basis, but out-of-the-box:
 
@@ -52,9 +51,9 @@ Swagger UI documentation will be instantly available at http://localhost:5000/do
 
 ## 🛠 API Usage & Quick Test
 
-The API accepts dynamic image uploads and Streams real-time processing stats during execution.
+The API accepts image uploads and streams real-time processing statistics during execution.
 
-For testing, you can use one of the commands below; they will demonstrate how the program works.
+Use one of the following commands to test the API.
 
 ### Linux / macOS
 
